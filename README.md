@@ -1,6 +1,6 @@
 # investRobot
 
-investRobot - это робот для аналитической торговли на бирже [Тинькофф Инвестиций](https://www.tinkoff.ru/invest/)
+investRobot - это робот для алгоритмической торговли на бирже [Тинькофф Инвестиций](https://www.tinkoff.ru/invest/)
 посредством [Tinkoff Invest API](https://github.com/Tinkoff/investAPI).
 
 [Документация для разработчиков](https://karpp.github.io/investRobot/)
