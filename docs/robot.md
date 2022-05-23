@@ -120,4 +120,4 @@
 
 ## Примеры использования
 
-См. файл [main.py]().
+См. файл [main.py](https://github.com/karpp/investRobot/blob/master/main.py).
