@@ -1,11 +1,21 @@
 import datetime
 import math
 import random
+
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 
-from tinkoff.invest import Candle, HistoricCandle, Quotation, Instrument, OrderType, OrderDirection, OrderState,\
-    SubscriptionInterval, MarketDataResponse
+from tinkoff.invest import (
+    Candle,
+    HistoricCandle,
+    Instrument,
+    MarketDataResponse,
+    OrderType,
+    OrderDirection,
+    OrderState,
+    Quotation,
+    SubscriptionInterval,
+)
 from robotlib.money import Money
 
 
@@ -50,7 +60,10 @@ class TradeStrategyBase(ABC):
 
     @property
     @abstractmethod
-    def strategy_id(self) -> str:  # string representing short strategy name for logger
+    def strategy_id(self) -> str:
+        """
+        string representing short strategy name for logger
+        """
         raise NotImplementedError()
 
     def load_instrument_info(self, instrument_info: Instrument):
@@ -66,6 +79,7 @@ class TradeStrategyBase(ABC):
     def decide(self, market_data: MarketDataResponse, params: TradeStrategyParams) -> StrategyDecision:
         if market_data.candle:
             return self.decide_by_candle(market_data.candle, params)
+        return StrategyDecision()
 
     @abstractmethod
     def decide_by_candle(self, candle: Candle | HistoricCandle, params: TradeStrategyParams) -> StrategyDecision:
@@ -76,18 +90,24 @@ class RandomStrategy(TradeStrategyBase):
     request_candles: bool = True
     strategy_id: str = 'random'
 
-    def __init__(self, lo: int, hi: int):
-        self.lo = lo
-        self.hi = hi
+    low: int
+    high: int
 
-    def decide(self, candle: Candle | HistoricCandle, params: TradeStrategyParams) -> RobotTradeOrder | None:
-        lo = max(self.lo, -params.instrument_balance)
-        hi = min(self.hi, math.floor(params.currency_balance / self.convert_quotation(candle.close)))
+    def __init__(self, low: int, high: int):
+        self.low = low
+        self.high = high
 
-        quantity = random.randint(lo, hi)
+    def decide(self, market_data: MarketDataResponse, params: TradeStrategyParams) -> StrategyDecision:
+        return self.decide_by_candle(market_data.candle, params)
+
+    def decide_by_candle(self, candle: Candle | HistoricCandle, params: TradeStrategyParams) -> StrategyDecision:
+        low = max(self.low, -params.instrument_balance)
+        high = min(self.high, math.floor(params.currency_balance / self.convert_quotation(candle.close)))
+
+        quantity = random.randint(low, high)
         direction = OrderDirection.ORDER_DIRECTION_BUY if quantity > 0 else OrderDirection.ORDER_DIRECTION_SELL
 
-        return RobotTradeOrder(quantity=quantity, direction=direction)
+        return StrategyDecision(RobotTradeOrder(quantity=quantity, direction=direction))
 
     @staticmethod
     def convert_quotation(amount: Quotation) -> float | None:
@@ -118,7 +138,10 @@ class MAEStrategy(TradeStrategyBase):
                        for candle in candles[-self.long_len:]}
         self.prev_sign = self._long_avg() > self._short_avg()
 
-    def decide(self, candle: Candle | HistoricCandle, params: TradeStrategyParams) -> StrategyDecision:
+    def decide(self, market_data: MarketDataResponse, params: TradeStrategyParams) -> StrategyDecision:
+        return self.decide_by_candle(market_data.candle, params)
+
+    def decide_by_candle(self, candle: Candle | HistoricCandle, params: TradeStrategyParams) -> StrategyDecision:
         time: datetime = candle.time.replace(second=0, microsecond=0)
         order: RobotTradeOrder | None = None
         if time not in self.prices:  # make order only once a minute (when minutely candle is ready)
@@ -130,8 +153,9 @@ class MAEStrategy(TradeStrategyBase):
                                                 direction=OrderDirection.ORDER_DIRECTION_SELL)
                 else:
                     lot_price = Money(candle.close).to_float() * self.instrument_info.lot
+                    lots_available = int(params.currency_balance / lot_price)
                     if params.currency_balance >= lot_price:
-                        order = RobotTradeOrder(quantity=min(self.trade_count, int(params.currency_balance / lot_price)),
+                        order = RobotTradeOrder(quantity=min(self.trade_count, lots_available),
                                                 direction=OrderDirection.ORDER_DIRECTION_BUY)
 
             self.prev_sign = sign

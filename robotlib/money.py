@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 
 from dataclasses import dataclass
-from tinkoff.invest import Quotation, MoneyValue
+from tinkoff.invest import MoneyValue, Quotation
 
 
 @dataclass(init=False, order=True)

@@ -2,14 +2,13 @@ from __future__ import annotations
 
 import datetime
 import logging
-import sys
+import pickle
 import uuid
 
-import pandas as pd
-import pickle
-
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, asdict
+from dataclasses import asdict
+
+import pandas as pd
 
 from tinkoff.invest import OrderState, Instrument, OrderDirection, Quotation, MoneyValue, OrderExecutionReportStatus, \
     OrderType
@@ -110,13 +109,13 @@ class TradeStatisticsAnalyzer:
     def get_report(self, processors: list[TradeStatisticsProcessorBase] = None,
                    calculators: list[TradeStatisticsCalculatorBase] = None)\
             -> tuple[dict[str, any], pd.DataFrame]:
-        df = pd.DataFrame(map(asdict, self.trades.values()))
+        df = pd.DataFrame(map(asdict, self.trades.values()))  # pylint:disable=invalid-name
         df['average_position_price'] = df['average_position_price'].apply(lambda x: x['units'] + x['nano'] / (10 ** 9))
         df['total_order_amount'] = df['total_order_amount'].apply(lambda x: x['units'] + x['nano'] / (10 ** 9))
         df['sign'] = 3 - df['direction'] * 2
 
         for processor in processors or []:
-            df = processor.process(df)
+            df = processor.process(df)  # pylint:disable=invalid-name
 
         stats = {}
         for calculator in calculators or []:
@@ -125,26 +124,26 @@ class TradeStatisticsAnalyzer:
         return stats, df
 
 
-class TradeStatisticsProcessorBase(ABC):
+class TradeStatisticsProcessorBase(ABC):  # pylint:disable=too-few-public-methods
     @abstractmethod
-    def process(self, df: pd.DataFrame) -> pd.DataFrame:
+    def process(self, df: pd.DataFrame) -> pd.DataFrame:  # pylint:disable=invalid-name
         raise NotImplementedError()
 
 
-class TradeStatisticsCalculatorBase(ABC):
+class TradeStatisticsCalculatorBase(ABC):  # pylint:disable=too-few-public-methods
     @abstractmethod
-    def calculate(self, df: pd.DataFrame) -> dict[str, any]:
+    def calculate(self, df: pd.DataFrame) -> dict[str, any]:  # pylint:disable=invalid-name
         raise NotImplementedError()
 
 
-class BalanceProcessor(TradeStatisticsProcessorBase):
+class BalanceProcessor(TradeStatisticsProcessorBase):  # pylint:disable=too-few-public-methods
     def process(self, df: pd.DataFrame) -> pd.DataFrame:
         df['balance'] = -(df['total_order_amount'] * df['sign']).cumsum()
         df['instrument_balance'] = (df['lots_executed'] * df['sign']).cumsum()
         return df
 
 
-class BalanceCalculator(TradeStatisticsCalculatorBase):
+class BalanceCalculator(TradeStatisticsCalculatorBase):  # pylint:disable=too-few-public-methods
     def calculate(self, df: pd.DataFrame) -> dict[str, any]:
         final_balance = df['balance'][len(df) - 1]
         final_instrument_balance = df['instrument_balance'][len(df) - 1]

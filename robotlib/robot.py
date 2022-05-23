@@ -2,31 +2,29 @@ import datetime
 import logging
 import sys
 import uuid
+
 from dataclasses import dataclass
 
 from tinkoff.invest import (
-    Client,
+    AccessLevel,
+    AccountStatus,
+    AccountType,
     Candle,
     CandleInstrument,
     CandleInterval,
-    SubscriptionInterval,
-    OrderDirection,
-    OrderExecutionReportStatus,
-    OrderState,
-    OrderType,
-    PostOrderResponse,
-    Quotation,
-    MoneyValue,
+    Client,
     InfoInstrument,
     Instrument,
     InstrumentIdType,
-    AccountType,
-    AccountStatus,
-    AccessLevel,
     MarketDataResponse,
+    MoneyValue,
     OrderBookInstrument,
+    OrderDirection,
+    OrderExecutionReportStatus,
+    OrderState,
+    PostOrderResponse,
+    Quotation,
     TradeInstrument,
-    SecurityTradingStatus
 )
 from tinkoff.invest.exceptions import InvestError
 from tinkoff.invest.services import MarketDataStreamManager, Services
@@ -43,7 +41,7 @@ class OrderExecutionInfo:
     amount: float = 0.0
 
 
-class TradingRobot:
+class TradingRobot:  # pylint:disable=too-many-instance-attributes
     APP_NAME: str = 'karpp'
 
     token: str
@@ -69,7 +67,8 @@ class TradingRobot:
     def trade(self) -> TradeStatisticsAnalyzer:
         self.logger.info('Starting trading')
 
-        self.trade_strategy.load_candles(list(self._load_historic_data(datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=1))))
+        self.trade_strategy.load_candles(
+            list(self._load_historic_data(datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=1))))
 
         with Client(self.token, app_name=self.APP_NAME) as client:
             trading_status = client.market_data.get_trading_status(figi=self.instrument_info.figi)
@@ -96,7 +95,8 @@ class TradingRobot:
             market_data_stream.info.subscribe([
                 InfoInstrument(figi=self.instrument_info.figi)
             ])
-            self.logger.debug(f'Subscribed to MarketDataStream, interval: {self.trade_strategy.candle_subscription_interval}')
+            self.logger.debug(f'Subscribed to MarketDataStream, '
+                              f'interval: {self.trade_strategy.candle_subscription_interval}')
             try:
                 for market_data in market_data_stream:
                     self.logger.debug(f'Received market_data {market_data}')
@@ -104,11 +104,11 @@ class TradingRobot:
                         self._on_update(client, market_data)
                     if market_data.trading_status and market_data.trading_status.market_order_available_flag:
                         self.logger.info(f'Trading is limited. Current status: {market_data.trading_status}')
-                        return self.trade_statistics
-            except InvestError as e:
-                self.logger.info(f'Caught exception {e}, stopping trading')
+                        break
+            except InvestError as error:
+                self.logger.info(f'Caught exception {error}, stopping trading')
                 market_data_stream.stop()
-                return self.trade_statistics
+            return self.trade_statistics
 
     def backtest(self, initial_params: TradeStrategyParams, test_duration: datetime.timedelta,
                  train_duration: datetime.timedelta = None) -> TradeStatisticsAnalyzer:
@@ -147,7 +147,6 @@ class TradingRobot:
 
                 trade_statistics.add_backtest_trade(
                     quantity=trade_order.quantity, price=candle.close, direction=trade_order.direction)
-                params = params
 
         return trade_statistics
 
@@ -171,7 +170,7 @@ class TradingRobot:
             self._cancel_orders(client=client, orders=strategy_decision.cancel_orders)
 
         trade_order = strategy_decision.robot_trade_order
-        if trade_order and self._validate_strategy_order(order=trade_order, candle=candle):
+        if trade_order and self._validate_strategy_order(order=trade_order, candle=market_data.candle):
             self._post_trade_order(client=client, trade_order=trade_order)
 
     def _validate_strategy_order(self, order: RobotTradeOrder, candle: Candle):
@@ -200,16 +199,16 @@ class TradingRobot:
                     interval=CandleInterval.CANDLE_INTERVAL_1_MIN,
                     figi=self.instrument_info.figi,
                 )
-        except InvestError as e:
-            self.logger.error(f'Failed to load historical data. Error: {e}')
+        except InvestError as error:
+            self.logger.error(f'Failed to load historical data. Error: {error}')
 
     def _cancel_orders(self, client: Services, orders: list[OrderState]):
         for order in orders:
             try:
                 client.orders.cancel_order(account_id=self.account_id, order_id=order.order_id)
                 self.trade_statistics.cancel_order(order_id=order.order_id)
-            except InvestError as e:
-                self.logger.error(f'Failed to cancel order {order.order_id}. Error: {e}')
+            except InvestError as error:
+                self.logger.error(f'Failed to cancel order {order.order_id}. Error: {error}')
 
     def _post_trade_order(self, client: Services, trade_order: RobotTradeOrder) -> PostOrderResponse | None:
         try:
@@ -233,8 +232,8 @@ class TradingRobot:
                     order_type=trade_order.order_type,
                     order_id=str(uuid.uuid4())
                 )
-        except InvestError as e:
-            self.logger.error(f'Posting trade order failed :(. Order: {trade_order}; Exception: {e}')
+        except InvestError as error:
+            self.logger.error(f'Posting trade order failed :(. Order: {trade_order}; Exception: {error}')
             return
         self.logger.info(f'Placed trade order {order}')
         self.orders_executed[order.order_id] = OrderExecutionInfo(direction=trade_order.direction)
@@ -267,7 +266,9 @@ class TradingRobot:
                     self.orders_executed.pop(order_id)
                 case OrderExecutionReportStatus.EXECUTION_REPORT_STATUS_PARTIALLYFILL:
                     self.logger.info(f'Trade order {order_id} has been PARTIALLY FILLED')
-                    self.orders_executed[order_id] = OrderExecutionInfo(lots=order_state.lots_executed, amount=order_state.total_order_amount)
+                    self.orders_executed[order_id] = OrderExecutionInfo(lots=order_state.lots_executed,
+                                                                        amount=order_state.total_order_amount,
+                                                                        direction=order_state.direction)
                 case _:
                     self.logger.debug(f'No updates on order {order_id}')
 
@@ -282,8 +283,8 @@ class TradingRobotFactory:
     logger: logging.Logger
     sandbox_mode: bool
 
-    def __init__(self, token: str, account_id: str, figi: str = None, ticker: str = None, class_code: str = None,
-                 logger_level: int | str = 'INFO'):
+    def __init__(self, token: str, account_id: str, figi: str = None,  # pylint:disable=too-many-arguments
+                 ticker: str = None, class_code: str = None, logger_level: int | str = 'INFO'):
         self.instrument_info = self._get_instrument_info(token, figi, ticker, class_code).instrument
         self.token = token
         self.account_id = account_id
@@ -357,9 +358,9 @@ class TradingRobotFactory:
 
                 return sandbox_mode
 
-        except InvestError as e:
-            logger.error(f'Failed to validate account. Exception: {e}')
-            raise e
+        except InvestError as error:
+            logger.error(f'Failed to validate account. Exception: {error}')
+            raise error
 
     @staticmethod
     def _get_instrument_info(token: str, figi: str = None, ticker: str = None, class_code: str = None):
@@ -369,5 +370,4 @@ class TradingRobotFactory:
                     raise ValueError('figi or both ticker and class_code must be not None')
                 return client.instruments.get_instrument_by(id_type=InstrumentIdType.INSTRUMENT_ID_TYPE_TICKER,
                                                             class_code=class_code, id=ticker)
-            else:
-                return client.instruments.get_instrument_by(id_type=InstrumentIdType.INSTRUMENT_ID_TYPE_FIGI, id=figi)
+            return client.instruments.get_instrument_by(id_type=InstrumentIdType.INSTRUMENT_ID_TYPE_FIGI, id=figi)
