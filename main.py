@@ -7,8 +7,6 @@ from robotlib.vizualization import Visualizer
 
 token = os.environ.get('TINKOFF_TOKEN')
 account_id = os.environ.get('TINKOFF_ACCOUNT')
-token = 't.a4m_dxqxQgNQ6d4ZMo1ND5iLb4Y5Z6l3OiaSUrEptn3ExoqPnKjhBnzXyLY4g3UDyNQAGON4djpR774frpCY1Q'
-account_id = '2017205804'
 
 
 def backtest(robot):
