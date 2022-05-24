@@ -3,9 +3,12 @@ import os
 
 from robotlib.robot import TradingRobotFactory
 from robotlib.strategy import TradeStrategyParams, MAEStrategy
+from robotlib.vizualization import Visualizer
 
 token = os.environ.get('TINKOFF_TOKEN')
 account_id = os.environ.get('TINKOFF_ACCOUNT')
+token = 't.a4m_dxqxQgNQ6d4ZMo1ND5iLb4Y5Z6l3OiaSUrEptn3ExoqPnKjhBnzXyLY4g3UDyNQAGON4djpR774frpCY1Q'
+account_id = '2017205804'
 
 
 def backtest(robot):
@@ -23,7 +26,7 @@ def trade(robot):
 def main():
     robot_factory = TradingRobotFactory(token=token, account_id=account_id, ticker='YNDX', class_code='TQBR',
                                         logger_level='INFO')
-    robot = robot_factory.create_robot(MAEStrategy(), sandbox_mode=True)
+    robot = robot_factory.create_robot(MAEStrategy(visualizer=Visualizer('YNDX', 'RUB')), sandbox_mode=True)
 
     backtest(robot)
 

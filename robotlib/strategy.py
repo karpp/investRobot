@@ -17,6 +17,7 @@ from tinkoff.invest import (
     SubscriptionInterval,
 )
 from robotlib.money import Money
+from robotlib.vizualization import Visualizer
 
 
 @dataclass
@@ -130,12 +131,13 @@ class MAEStrategy(TradeStrategyBase):
     prices = dict[datetime.datetime, Money]
     prev_sign: bool
 
-    def __init__(self, short_len: int = 5, long_len: int = 20, trade_count: int = 1):
+    def __init__(self, short_len: int = 5, long_len: int = 20, trade_count: int = 1, visualizer: Visualizer = None):
         assert long_len > short_len
         self.short_len = short_len
         self.long_len = long_len
         self.trade_count = trade_count
         self.prices = {}
+        self.visualizer = visualizer
 
     def load_candles(self, candles: list[HistoricCandle]) -> None:
         self.prices = {candle.time.replace(second=0, microsecond=0): Money(candle.close)
@@ -155,15 +157,23 @@ class MAEStrategy(TradeStrategyBase):
                     if params.instrument_balance > 0:
                         order = RobotTradeOrder(quantity=min(self.trade_count, params.instrument_balance),
                                                 direction=OrderDirection.ORDER_DIRECTION_SELL)
+                        if self.visualizer:
+                            self.visualizer.add_sell(time)
                 else:
                     lot_price = Money(candle.close).to_float() * self.instrument_info.lot
                     lots_available = int(params.currency_balance / lot_price)
                     if params.currency_balance >= lot_price:
                         order = RobotTradeOrder(quantity=min(self.trade_count, lots_available),
                                                 direction=OrderDirection.ORDER_DIRECTION_BUY)
+                        if self.visualizer:
+                            self.visualizer.add_buy(time)
 
             self.prev_sign = sign
         self.prices[time] = Money(candle.close)
+        if self.visualizer:
+            self.visualizer.add_price(time, Money(candle.close).to_float())
+            self.visualizer.update_plot()
+
         return StrategyDecision(robot_trade_order=order)
 
     def get_prices_list(self) -> list[Money]:
