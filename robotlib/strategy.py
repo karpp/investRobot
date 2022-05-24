@@ -120,6 +120,10 @@ class MAEStrategy(TradeStrategyBase):
     request_candles: bool = True
     strategy_id: str = 'mae'
 
+    candle_subscription_interval: SubscriptionInterval = SubscriptionInterval.SUBSCRIPTION_INTERVAL_ONE_MINUTE
+    order_book_subscription_depth = None
+    trades_subscription = None
+
     short_len: int
     long_len: int
     trade_count: int

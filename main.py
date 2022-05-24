@@ -21,7 +21,8 @@ def trade(robot):
 
 
 def main():
-    robot_factory = TradingRobotFactory(token=token, account_id=account_id, ticker='YNDX', class_code='TQBR', logger_level='DEBUG')
+    robot_factory = TradingRobotFactory(token=token, account_id=account_id, ticker='YNDX', class_code='TQBR',
+                                        logger_level='INFO')
     robot = robot_factory.create_robot(MAEStrategy(), sandbox_mode=True)
 
     backtest(robot)
