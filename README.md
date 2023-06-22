@@ -18,7 +18,7 @@ investRobot - это робот для алгоритмической торго
 ## Запуск робота
 
 1. Установите зависимости `python3.10 -m pip install -r requirements.txt`;
-2. Получите токен и сохраните его и ID аккаунта в .env файле: 
+2. Получите токен и сохраните его и ID аккаунта в `.env` файле: 
 ```
 TINKOFF_TOKEN = Ваш токен Tinkoff API
 TINKOFF_ACCOUNT = Ваш ID аккаунта
