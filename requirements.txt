@@ -32,3 +32,4 @@ tinkoff==0.1.1
 tinkoff-investments==0.2.0b27
 watchdog==2.1.8
 zipp==3.8.0
+environs==9.5.0
