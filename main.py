@@ -1,12 +1,16 @@
 import datetime
-import os
+
 
 from robotlib.robot import TradingRobotFactory
 from robotlib.strategy import TradeStrategyParams, MAEStrategy
 from robotlib.vizualization import Visualizer
+from config_data.config import load_config
 
-token = os.environ.get('TINKOFF_TOKEN')
-account_id = os.environ.get('TINKOFF_ACCOUNT')
+
+config = load_config()
+
+token = config.tcs_client.token
+account_id = config.tcs_client.id
 
 
 def backtest(robot):
